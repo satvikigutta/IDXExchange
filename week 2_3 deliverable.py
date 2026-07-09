@@ -29,4 +29,26 @@ summary.to_csv("sold_distribution_summary.csv") #save the summary statistics to 
 print("saved!")
 import os
 os.chdir("/Users/satvikigutta/Downloads/idx_files")
+import requests
 
+url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
+response = requests.get(url, verify=False)
+
+import io
+mortgage = pd.read_csv(io.StringIO(response.text), parse_dates=["observation_date"])
+mortgage.columns = ["date", "rate_30yr_fixed"]
+print(mortgage.head())
+mortgage["year_month"] = mortgage["date"].dt.to_period("M")
+mortgage_monthly = mortgage.groupby("year_month")["rate_30yr_fixed"].mean().reset_index()
+print(mortgage_monthly.head())
+sold["year_month"] = pd.to_datetime(sold["CloseDate"]).dt.to_period("M")
+listing["year_month"] = pd.to_datetime(listing["ListingContractDate"]).dt.to_period("M")
+print(sold["year_month"].head())
+sold_with_rates = sold.merge(mortgage_monthly, on="year_month", how="left")
+listing_with_rates = listing.merge(mortgage_monthly, on="year_month", how="left")
+print("merge done!")
+print(sold_with_rates["rate_30yr_fixed"].isnull().sum())
+print(listing_with_rates["rate_30yr_fixed"].isnull().sum())
+sold_with_rates.to_csv("sold_enriched_with_rates.csv", index=False)
+listing_with_rates.to_csv("listing_enriched_with_rates.csv", index=False)
+print("saved!")
